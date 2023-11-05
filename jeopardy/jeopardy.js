@@ -1,7 +1,11 @@
+const BASE_API_URL = "https://jservice.io/api/random/";
+const NUM_CATEGORIES = 6;
+const NUM_CLUES_PER_CAT = 5;
+
 // categories is the main data structure for the app; it looks like this:
 
 //  [
-//    { title: "Math",
+//    { title: "Math",h
 //      clues: [
 //        {question: "2+2", answer: 4, showing: null},
 //        {question: "1+1", answer: 2, showing: null}
@@ -26,7 +30,10 @@ let categories = [];
  * Returns array of category ids
  */
 
-function getCategoryIds() {
+async function getCategoryIds() {
+  let response = await axios.get(`${BASE_API_URL}categories?count=100`);
+  let catIds = response.data.map(c => c.id);
+  return _.sampleSize(catIds, NUM_CATEGORIES);
 }
 
 /** Return object with data about a category:
@@ -35,50 +42,77 @@ function getCategoryIds() {
  *
  * Where clue-array is:
  *   [
- *      {question: "Hamlet Author", answer: "Shakespeare"},
- *      {question: "Bell Jar Author", answer: "Plath"},
+ *      {question: "Hamlet Author", answer: "Shakespeare", showing: null},
+ *      {question: "Bell Jar Author", answer: "Plath", showing: null},
  *      ...
  *   ]
  */
 
+async function getCategory(catId) {
+  let response = await axios.get(`${BASE_API_URL}category?id=${catId}`);
+  let cat = response.data;
+  let allClues = cat.clues;
+  let randomClues = _.sampleSize(allClues, NUM_CLUES_PER_CAT);
+  let clues = randomClues.map(c => ({
+    question: c.question,
+    answer: c.answer,
+    showing: null,
+  }));
 
-function getCategory(catId) {
+   allClues.count >= 5
+  return { title: cat.title, clues };
 }
 
-/** Fill the HTML Card#jeopardy with the categories & cells for questions.
+/** Fill the HTML table#jeopardy with the categories & cells for questions.
  *
- * - It should contain Card Container div and inside this it contain
- * - Card header div where Category title will be prsent
- * - The it should contain Card body div that contain Category Question,
- * - And in last ist should contain Footer div where it should contain answer which will appear on click.
- * 
+ * - The <thead> should be filled w/a <tr>, and a <td> for each category
+ * - The <tbody> should be filled w/NUM_QUESTIONS_PER_CAT <tr>s,
+ *   each with a question for each category in a <td>
+ *   (initally, just show a "?" where the question/answer would go.)
  */
 
-async function fillCard() {
+async function fillTable() {
+  // Add row with headers for categories
+  $("#jeopardy thead").empty();
+  let $tr = $("<tr>");
+  for (let catIdx = 0; catIdx < NUM_CATEGORIES; catIdx++) {
+    $tr.append($("<th>").text(categories[catIdx].title));
+  }
+  $("#jeopardy thead").append($tr);
+
+  // Add rows with questions for each category
+  $("#jeopardy tbody").empty();
+  for (let clueIdx = 0; clueIdx < NUM_CLUES_PER_CAT; clueIdx++) {
+    let $tr = $("<tr>");
+    for (let catIdx = 0; catIdx < NUM_CATEGORIES; catIdx++) {
+      $tr.append($("<td>").attr("id", `${catIdx}-${clueIdx}`).text("QUESTION"));
+    }
+    $("#jeopardy tbody").append($tr);
+  }
 }
 
-/** Handle clicking on a clue: show the question or answer.
- *
- * Uses showed property on category Index to determine what to show:
- * - if currently null, show question & set showed to "true" and render card with current index
- * - if currently true, show answer & set index to index+1"
- * */
 
 
 function handleClick(evt) {
-}
+  let id = evt.target.id;
+  let [catId, clueId] = id.split("-");
+  let clue = categories[catId].clues[clueId];
 
-/** Wipe the current Jeopardy board, show the loading spinner,
- * and update the button used to fetch data.
- */
+  let msg;
 
-function showLoadingView() {
+  if (!clue.showing) {
+    msg = clue.question;
+    clue.showing = "question";
+  } else if (clue.showing === "question") {
+    msg = clue.answer;
+    clue.showing = "answer";
+  } else {
+    // already showing answer; ignore
+    return
+  }
 
-}
-
-/** Remove the loading spinner and update the button used to fetch data. */
-
-function hideLoadingView() {
+  // Update text of cell
+  $(`#${catId}-${clueId}`).html(msg);
 }
 
 /** Start game:
@@ -89,12 +123,29 @@ function hideLoadingView() {
  * */
 
 async function setupAndStart() {
+  let catIds = await getCategoryIds();
+
+  categories = [];
+
+  for (let catId of catIds) {
+    
+      
+
+    categories.push(await getCategory(catId));
+  }
+
+
+  fillTable();
 }
 
-/** On click of start / restart button, set up game. */
+/** On click of restart button, restart game. */
 
-// TODO
+$("#restart").on("click", setupAndStart);
 
-/** On page load, add event handler for clicking clues */
+/** On page load, setup and start & add event handler for clicking clues */
 
-// TODO
+$(async function () {
+    setupAndStart();
+    $("#jeopardy").on("click", "td", handleClick);
+  }
+);
