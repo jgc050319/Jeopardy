@@ -1,4 +1,6 @@
-const BASE_API_URL = "https://jservice.io/api/random/";
+const startBtn = document.getElementById("start")
+const BASE_API_URL = "https://jservice.io/api/random";
+let categories = [];
 const NUM_CATEGORIES = 6;
 const NUM_CLUES_PER_CAT = 5;
 
@@ -7,7 +9,7 @@ const NUM_CLUES_PER_CAT = 5;
 //  [
 //    { title: "Math",h
 //      clues: [
-//        {question: "2+2", answer: 4, showing: null},
+//        {question: "2+2", answer: 4, showing: null}, 
 //        {question: "1+1", answer: 2, showing: null}
 //        ...
 //      ],
@@ -22,8 +24,25 @@ const NUM_CLUES_PER_CAT = 5;
 //    ...
 //  ]
 
-let categories = [];
 
+startBtn.addEventListener("click", ()=>{
+  startBtn.classList.add('visually-hidden')
+  spin-container.classList.remove('visually-hidden')
+  jeopardyTable.classList.remove('visually-hidden')
+  jeopardyCard.classList.remove('visually-hidden')
+  gameOver.classList.add('visually-hidden')
+  getQuestions()
+})
+function getQuestions(){
+  axios.get(BASE_API_URL).then((response)=>{
+    categories = response.data
+    console.log(categories)
+  })
+}
+axios.get(BASE_API_URL)
+axios.post(BASE_API_URL)
+axios.delete(BASE_API_URL)
+axios.put(BASE_API_URL)
 
 /** Get NUM_CATEGORIES random category from API.
  *
@@ -31,11 +50,17 @@ let categories = [];
  */
 
 async function getCategoryIds() {
-  let response = await axios.get(`${BASE_API_URL}categories?count=100`);
+  let categoryIds = [];
+  let response = await axios.get(`${BASE_API_URL}categories?count=50`);
   let catIds = response.data.map(c => c.id);
-  return _.sampleSize(catIds, NUM_CATEGORIES);
-}
-
+  for (let i = 0; i < 100; i++) {
+    const element = response.data[i];
+    categoryIds.push(element.id);
+  }
+for (let i = 0; i < categoryIds.length; i++) {
+  const dataCategory = await getCategory(categoryIds[i]);
+categories.push (dataCategory);
+}}
 /** Return object with data about a category:
  *
  *  Returns { title: "Math", clues: clue-array }
@@ -49,18 +74,18 @@ async function getCategoryIds() {
  */
 
 async function getCategory(catId) {
-  let response = await axios.get(`${BASE_API_URL}category?id=${catId}`);
-  let cat = response.data;
-  let allClues = cat.clues;
-  let randomClues = _.sampleSize(allClues, NUM_CLUES_PER_CAT);
-  let clues = randomClues.map(c => ({
-    question: c.question,
-    answer: c.answer,
-    showing: null,
-  }));
+  const response = await axios.get(`${BASE_API_URL}`, {
+    params: {
+      id: catId,
+    },
+  });
 
-   allClues.count >= 5
-  return { title: cat.title, clues };
+  const categoryWithClues = response.data;
+  return {
+    id: categoryWithClues.id,
+    title: categoryWithClues.title,
+    clues: categoryWithClues.clues,
+  };
 }
 
 /** Fill the HTML table#jeopardy with the categories & cells for questions.
@@ -108,7 +133,7 @@ function handleClick(evt) {
     clue.showing = "answer";
   } else {
     // already showing answer; ignore
-    return
+    return;
   }
 
   // Update text of cell
@@ -140,7 +165,7 @@ async function setupAndStart() {
 
 /** On click of restart button, restart game. */
 
-$("#restart").on("click", setupAndStart);
+$("restartBtn").on("click", setupAndStart);
 
 /** On page load, setup and start & add event handler for clicking clues */
 
